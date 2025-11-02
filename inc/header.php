@@ -28,7 +28,37 @@
                 <?php 
           if(isset($_SESSION['login']) && $_SESSION['login']==true)
           {
+            if(!isset($con)){
+              require_once('admin/inc/db_config.php');
+            }
+
+            $user_refresh = select("SELECT is_host, host_status FROM user_cred WHERE id = ? LIMIT 1", [$_SESSION['uId']], 'i');
+            if($user_refresh && mysqli_num_rows($user_refresh) === 1){
+              $latest = mysqli_fetch_assoc($user_refresh);
+              $_SESSION['isHost'] = (int)($latest['is_host'] ?? 0);
+              $_SESSION['hostStatus'] = $latest['host_status'] ?? null;
+            }
+
             $path = USERS_IMG_PATH;
+            $host_menu = '';
+            $host_status = $_SESSION['hostStatus'] ?? null;
+            $is_host = !empty($_SESSION['isHost']);
+
+            if($is_host){
+              $host_menu .= '<li><hr class="dropdown-divider"></li>';
+              $host_menu .= '<li><a class="dropdown-item" href="host/dashboard.php">Khu vực Host</a></li>';
+            } else {
+              $host_menu .= '<li><hr class="dropdown-divider"></li>';
+              if($host_status === 'pending'){
+                $host_menu .= '<li><span class="dropdown-item-text text-warning small">Yêu cầu Host đang chờ duyệt</span></li>';
+              } elseif($host_status === 'rejected'){
+                $host_menu .= '<li><span class="dropdown-item-text text-danger small">Yêu cầu Host trước đó bị từ chối</span></li>';
+                $host_menu .= '<li><button type="button" class="dropdown-item" onclick="becomeHost()">Gửi lại yêu cầu Host</button></li>';
+              } else {
+                $host_menu .= '<li><button type="button" class="dropdown-item" onclick="becomeHost()">Trở thành Host</button></li>';
+              }
+            }
+
             echo<<<data
               <div class="btn-group">
                 <button type="button" class="btn btn-outline-dark shadow-none dropdown-toggle" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
@@ -39,6 +69,7 @@
                   <li><a class="dropdown-item" href="profile.php">Hồ sơ cá nhân</a></li>
                   <li><a class="dropdown-item" href="bookings.php">Lịch sử đặt phòng</a></li>
                   <li><a class="dropdown-item" href="logout.php">Đăng xuất</a></li>
+                  $host_menu
                 </ul>
               </div>
             data;
@@ -195,15 +226,21 @@ function becomeHost() {
         xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
 
         xhr.onload = function() {
-            if (this.responseText == 'not_logged_in') {
+            let response = this.responseText.trim();
+            if (response === 'not_logged_in') {
                 alert("Bạn cần đăng nhập trước!");
-            } else if (this.responseText == 'already_requested') {
-                alert("Bạn đã gửi yêu cầu rồi!");
-            } else if (this.responseText == 'request_sent') {
-                alert("Yêu cầu đã được gửi. Vui lòng chờ admin duyệt!");
+            } else if (response === 'already_host') {
+                alert("Tài khoản của bạn đã là Host!");
+            } else if (response === 'already_requested') {
+                alert("Bạn đã gửi yêu cầu rồi! Vui lòng chờ duyệt.");
+            } else if (response === 'request_sent' || response === 'request_resent') {
+                let message = response === 'request_sent'
+                  ? "Yêu cầu đã được gửi. Vui lòng chờ admin duyệt!"
+                  : "Yêu cầu của bạn đã được gửi lại. Vui lòng chờ admin duyệt!";
+                alert(message);
                 location.reload();
             } else {
-                alert("Gửi yêu cầu thất bại!");
+                alert("Gửi yêu cầu thất bại! Vui lòng thử lại sau.");
             }
         }
 
