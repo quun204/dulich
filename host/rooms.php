@@ -1,215 +1,174 @@
 <?php
-require('inc/essentials.php');
-require('../admin/inc/db_config.php');
-hostLogin();
+require('inc/links.php');
+
+$hostData = hostLogin();
+$hostId = $_SESSION['uId'];
+$message = '';
+$message_type = 'success';
+
+if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['room_id'])){
+    $frm = filteration($_POST);
+    $roomId = (int)$frm['room_id'];
+    $desiredStatus = isset($frm['status']) ? (int)$frm['status'] : 0;
+
+    $update = update(
+        "UPDATE `rooms` SET `status`=? WHERE `id`=? AND `host_id`=?",
+        [$desiredStatus, $roomId, $hostId],
+        'iii'
+    );
+
+    if($update){
+        $message = 'Đã cập nhật trạng thái phòng thành công!';
+    } else {
+        $message = 'Cập nhật trạng thái thất bại!';
+        $message_type = 'error';
+    }
+}
+
+$rooms = select(
+    "SELECT * FROM `rooms` WHERE `host_id`=? AND `removed`=0 ORDER BY `id` DESC",
+    [$hostId],
+    'i'
+);
+
+$features_map = [];
+$facilities_map = [];
+
+$feature_res = selectAll('features');
+while($feature = mysqli_fetch_assoc($feature_res)){
+    $features_map[$feature['id']] = $feature['name'];
+}
+
+$facility_res = selectAll('facilities');
+while($facility = mysqli_fetch_assoc($facility_res)){
+    $facilities_map[$facility['id']] = $facility['name'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
-  <meta charset="UTF-8">
-  <title>Chỗ ở của tôi</title>
-  <?php require('inc/links.php'); ?>
+    <meta charset="UTF-8">
+    <title>Trang nhà cung cấp - Chỗ ở</title>
 </head>
-<body>
-  <?php require('inc/header.php'); ?>
-  <main class="container my-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h4 class="mb-0">Chỗ ở của tôi</h4>
-      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRoomModal">
-        <i class="bi bi-plus-circle me-2"></i>Đăng chỗ ở mới
-      </button>
-    </div>
 
-    <div class="card border-0 shadow-sm">
-      <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle text-center">
-            <thead class="table-dark">
-              <tr>
-                <th>#</th>
-                <th>Tên chỗ ở</th>
-                <th>Khu vực</th>
-                <th>Sức chứa</th>
-                <th>Giá / đêm</th>
-                <th>Số lượng</th>
-                <th>Trạng thái</th>
-                <th>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody id="host-room-data"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </main>
+<body class="bg-light">
 
-  <!-- Modal thêm mới -->
-  <div class="modal fade" id="addRoomModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-      <form id="host_add_room_form" autocomplete="off">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Đăng chỗ ở mới</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <div class="row g-3">
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Tên chỗ ở</label>
-                <input type="text" name="name" class="form-control" required>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Khu vực</label>
-                <input type="text" name="area" class="form-control" required>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Giá (VND)</label>
-                <input type="number" name="price" min="1" class="form-control" required>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Số lượng</label>
-                <input type="number" name="quantity" min="1" class="form-control" required>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Người lớn tối đa</label>
-                <input type="number" name="adult" min="1" class="form-control" required>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Trẻ em tối đa</label>
-                <input type="number" name="children" min="0" class="form-control" required>
-              </div>
-              <div class="col-12">
-                <label class="form-label fw-bold">Không gian</label>
-                <div class="row">
-                  <?php
-                  $res = selectAll('features');
-                  while($opt = mysqli_fetch_assoc($res)){
-                    echo "<div class='col-md-3 mb-2'>
-                      <div class='form-check'>
-                        <input class='form-check-input' type='checkbox' name='features' value='{$opt['id']}'>
-                        <label class='form-check-label'>{$opt['name']}</label>
-                      </div>
-                    </div>";
-                  }
-                  ?>
+    <?php require('inc/header.php'); ?>
+
+    <div class="container-fluid" id="main-content">
+        <div class="row">
+            <div class="col-lg-10 ms-auto p-4 overflow-hidden">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="mb-0">Chỗ ở của tôi</h3>
                 </div>
-              </div>
-              <div class="col-12">
-                <label class="form-label fw-bold">Tiện ích</label>
-                <div class="row">
-                  <?php
-                  $res = selectAll('facilities');
-                  while($opt = mysqli_fetch_assoc($res)){
-                    echo "<div class='col-md-3 mb-2'>
-                      <div class='form-check'>
-                        <input class='form-check-input' type='checkbox' name='facilities' value='{$opt['id']}'>
-                        <label class='form-check-label'>{$opt['name']}</label>
-                      </div>
-                    </div>";
-                  }
-                  ?>
-                </div>
-              </div>
-              <div class="col-12">
-                <label class="form-label fw-bold">Mô tả chi tiết</label>
-                <textarea name="desc" rows="4" class="form-control" required></textarea>
-              </div>
+
+                <?php if($message !== ''): ?>
+                    <div class="alert <?php echo ($message_type === 'success') ? 'alert-success' : 'alert-danger'; ?> alert-dismissible fade show" role="alert">
+                        <strong><?php echo htmlspecialchars($message); ?></strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                <?php endif; ?>
+
+                <?php
+      if(mysqli_num_rows($rooms) === 0){
+        echo "<div class='alert alert-info'>Bạn chưa có chỗ ở nào được duyệt. Vui lòng chờ quản trị viên xác nhận yêu cầu hoặc liên hệ để được hỗ trợ.</div>";
+      }
+      else{
+        echo "<div class='row g-3'>";
+        while($room = mysqli_fetch_assoc($rooms)){
+          $roomName = htmlspecialchars($room['name']);
+          $roomArea = htmlspecialchars($room['area']);
+          $roomDesc = htmlspecialchars($room['description']);
+          $roomPrice = number_format($room['price']);
+          $approval = htmlspecialchars($room['approval_status']);
+          $status = (int)$room['status'];
+          $badge = '<span class="badge bg-secondary">Không xác định</span>';
+
+          if($approval === 'approved'){
+            $badge = '<span class="badge bg-success">Đã duyệt</span>';
+          }
+          elseif($approval === 'pending'){
+            $badge = '<span class="badge bg-warning text-dark">Đang chờ</span>';
+          }
+          elseif($approval === 'rejected'){
+            $badge = '<span class="badge bg-danger">Bị từ chối</span>';
+          }
+
+          $features = [];
+          $feature_res = select("SELECT features_id FROM `room_features` WHERE `room_id`=?", [$room['id']], 'i');
+          while($f = mysqli_fetch_assoc($feature_res)){
+            $features[] = $features_map[$f['features_id']] ?? '';
+          }
+          $features = array_filter($features);
+
+          $facilities = [];
+          $facility_res = select("SELECT facilities_id FROM `room_facilities` WHERE `room_id`=?", [$room['id']], 'i');
+          while($f = mysqli_fetch_assoc($facility_res)){
+            $facilities[] = $facilities_map[$f['facilities_id']] ?? '';
+          }
+          $facilities = array_filter($facilities);
+
+          echo "<div class='col-md-6'>";
+          echo "  <div class='card border-0 shadow-sm h-100'>";
+          echo "    <div class='card-body d-flex flex-column'>";
+          echo "      <div class='d-flex justify-content-between align-items-start mb-2'>";
+          echo "        <div>";
+          echo "          <h5 class='card-title mb-1'>{$roomName}</h5>";
+          echo "          <span class='badge bg-light text-dark me-1'>Khu vực: {$roomArea}</span>";
+          echo "          <span class='badge bg-light text-dark'>Giá: {$roomPrice} VND</span>";
+          echo "        </div>";
+          echo "        {$badge}";
+          echo "      </div>";
+          echo "      <p class='text-muted small flex-grow-1'>{$roomDesc}</p>";
+
+          if(!empty($features)){
+            echo "      <div class='mb-2'><h6 class='mb-1'>Không gian</h6>";
+            foreach($features as $feat){
+              $feat = htmlspecialchars($feat);
+              echo "<span class='badge bg-light text-dark me-1'>{$feat}</span>";
+            }
+            echo "</div>";
+          }
+
+          if(!empty($facilities)){
+            echo "      <div class='mb-3'><h6 class='mb-1'>Tiện ích</h6>";
+            foreach($facilities as $fac){
+              $fac = htmlspecialchars($fac);
+              echo "<span class='badge bg-secondary bg-opacity-25 text-dark me-1'>{$fac}</span>";
+            }
+            echo "</div>";
+          }
+
+          echo "      <div class='mt-auto'>";
+          if($approval !== 'approved'){
+            echo "        <span class='text-muted small'>Chờ quản trị viên duyệt trước khi bật hiển thị.</span>";
+          } else {
+            echo "        <form method='POST' class='d-flex align-items-center gap-2'>";
+            echo "          <input type='hidden' name='room_id' value='{$room['id']}'>";
+            if($status === 1){
+              echo "          <input type='hidden' name='status' value='0'>";
+              echo "          <button type='submit' class='btn btn-outline-danger btn-sm'>Tắt hiển thị</button>";
+            }
+            else{
+              echo "          <input type='hidden' name='status' value='1'>";
+              echo "          <button type='submit' class='btn btn-success btn-sm'>Bật hiển thị</button>";
+            }
+            echo "        </form>";
+          }
+          echo "      </div>";
+          echo "    </div>";
+          echo "  </div>";
+          echo "</div>";
+        }
+        echo "</div>";
+      }
+      ?>
             </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Huỷ</button>
-            <button type="submit" class="btn btn-primary">Đăng chỗ ở</button>
-          </div>
         </div>
-      </form>
     </div>
-  </div>
 
-  <!-- Modal chỉnh sửa -->
-  <div class="modal fade" id="editRoomModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-      <form id="host_edit_room_form" autocomplete="off">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Cập nhật thông tin chỗ ở</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <input type="hidden" name="room_id">
-            <div class="row g-3">
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Tên chỗ ở</label>
-                <input type="text" name="name" class="form-control" required>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Khu vực</label>
-                <input type="text" name="area" class="form-control" required>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Giá (VND)</label>
-                <input type="number" name="price" min="1" class="form-control" required>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Số lượng</label>
-                <input type="number" name="quantity" min="1" class="form-control" required>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Người lớn tối đa</label>
-                <input type="number" name="adult" min="1" class="form-control" required>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-bold">Trẻ em tối đa</label>
-                <input type="number" name="children" min="0" class="form-control" required>
-              </div>
-              <div class="col-12">
-                <label class="form-label fw-bold">Không gian</label>
-                <div class="row" id="edit-features-wrapper">
-                  <?php
-                  $res = selectAll('features');
-                  while($opt = mysqli_fetch_assoc($res)){
-                    echo "<div class='col-md-3 mb-2'>
-                      <div class='form-check'>
-                        <input class='form-check-input' type='checkbox' name='features' value='{$opt['id']}'>
-                        <label class='form-check-label'>{$opt['name']}</label>
-                      </div>
-                    </div>";
-                  }
-                  ?>
-                </div>
-              </div>
-              <div class="col-12">
-                <label class="form-label fw-bold">Tiện ích</label>
-                <div class="row" id="edit-facilities-wrapper">
-                  <?php
-                  $res = selectAll('facilities');
-                  while($opt = mysqli_fetch_assoc($res)){
-                    echo "<div class='col-md-3 mb-2'>
-                      <div class='form-check'>
-                        <input class='form-check-input' type='checkbox' name='facilities' value='{$opt['id']}'>
-                        <label class='form-check-label'>{$opt['name']}</label>
-                      </div>
-                    </div>";
-                  }
-                  ?>
-                </div>
-              </div>
-              <div class="col-12">
-                <label class="form-label fw-bold">Mô tả chi tiết</label>
-                <textarea name="desc" rows="4" class="form-control" required></textarea>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Huỷ</button>
-            <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
-          </div>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <?php require('inc/footer.php'); ?>
-  <?php require('inc/scripts.php'); ?>
-  <script src="scripts/rooms.js"></script>
+    <?php require('inc/scripts.php'); ?>
 </body>
+
 </html>

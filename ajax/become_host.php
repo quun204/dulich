@@ -1,42 +1,101 @@
 <?php
 require('../admin/inc/db_config.php');
 require('../admin/inc/essentials.php');
-session_start();
 
-if(!isset($_SESSION['login']) || $_SESSION['login'] != true){
-  echo 'not_logged_in';
-  exit;
+if(session_status() !== PHP_SESSION_ACTIVE){
+    session_start();
 }
 
-$uId = $_SESSION['uId'];
+ensureHostSchema();
 
-$res = select("SELECT host_status, is_host FROM user_cred WHERE id = ? LIMIT 1", [$uId], 'i');
-if(!$res || mysqli_num_rows($res) === 0){
-  echo 'failed';
-  exit;
+if(!isset($_SESSION['login']) || $_SESSION['login'] != true || !isset($_SESSION['uId'])){
+    echo 'not_logged_in';
+    exit;
 }
 
-$row = mysqli_fetch_assoc($res);
+$uId = (int)$_SESSION['uId'];
 
-if((int)$row['is_host'] === 1){
-  echo 'already_host';
-  exit;
+$usr_res = select("SELECT `is_host`, `host_status` FROM `user_cred` WHERE `id`=? LIMIT 1", [$uId], 'i');
+if(mysqli_num_rows($usr_res) == 0){
+    echo 'failed';
+    exit;
 }
 
-if($row['host_status'] === 'pending'){
-  echo 'already_requested';
-  exit;
+$user = mysqli_fetch_assoc($usr_res);
+
+if((int)$user['is_host'] === 1){
+    echo 'already_host';
+    exit;
 }
 
-$status = 'pending';
-if($row['host_status'] === 'rejected'){
-  $status = 'pending';
+if($user['host_status'] === 'pending'){
+    echo 'already_pending';
+    exit;
 }
 
-if(update("UPDATE user_cred SET host_status = ? WHERE id = ?", [$status, $uId], 'si')){
-  $_SESSION['hostStatus'] = $status;
-  echo ($row['host_status'] === 'rejected') ? 'request_resent' : 'request_sent';
+$pending_res = select("SELECT `id` FROM `host_applications` WHERE `user_id`=? AND `status`='pending' LIMIT 1", [$uId], 'i');
+if(mysqli_num_rows($pending_res) > 0){
+    echo 'already_pending';
+    exit;
+}
+
+$required_fields = ['property_name','area','price','quantity','adult','children','description'];
+foreach($required_fields as $field){
+    if(!isset($_POST[$field]) || trim($_POST[$field]) === ''){
+        echo 'failed';
+        exit;
+    }
+}
+
+$frm_data = filteration($_POST);
+
+$features = [];
+if(isset($_POST['features'])){
+    $decoded_features = json_decode($_POST['features'], true);
+    if(is_array($decoded_features)){
+        foreach($decoded_features as $feature_id){
+            if(is_numeric($feature_id)){
+                $features[] = (int)$feature_id;
+            }
+        }
+    }
+}
+
+$facilities = [];
+if(isset($_POST['facilities'])){
+    $decoded_facilities = json_decode($_POST['facilities'], true);
+    if(is_array($decoded_facilities)){
+        foreach($decoded_facilities as $facility_id){
+            if(is_numeric($facility_id)){
+                $facilities[] = (int)$facility_id;
+            }
+        }
+    }
+}
+
+$features_json = json_encode($features);
+$facilities_json = json_encode($facilities);
+
+$query = "INSERT INTO `host_applications`
+          (`user_id`, `property_name`, `area`, `price`, `quantity`, `adult`, `children`, `description`, `features`, `facilities`)
+          VALUES (?,?,?,?,?,?,?,?,?,?)";
+
+$values = [
+    $uId,
+    $frm_data['property_name'],
+    $frm_data['area'],
+    (int)$frm_data['price'],
+    (int)$frm_data['quantity'],
+    (int)$frm_data['adult'],
+    (int)$frm_data['children'],
+    $frm_data['description'],
+    $features_json,
+    $facilities_json
+];
+
+if(insert($query, $values, 'issiiiisss')){
+    update("UPDATE `user_cred` SET `host_status`='pending' WHERE `id`=?", [$uId], 'i');
+    echo 'request_sent';
 } else {
-  echo 'failed';
+    echo 'failed';
 }
-?>

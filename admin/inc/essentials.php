@@ -17,13 +17,52 @@
   define('ROOMS_FOLDER','rooms/');
   define('USERS_FOLDER','users/');
 
-	function adminLogin() {
-		session_start();
-		if(!(isset($_SESSION['adminLogin']) && $_SESSION['adminLogin'] == true)){
-			echo"<script>window.location.href='index.php'</script>";
-			exit;
-		}
-	}
+        function adminLogin() {
+                if(session_status() !== PHP_SESSION_ACTIVE){
+                        session_start();
+                }
+                if(!(isset($_SESSION['adminLogin']) && $_SESSION['adminLogin'] == true)){
+                        echo"<script>window.location.href='index.php'</script>";
+                        exit;
+                }
+        }
+
+        function hostLogin($redirectOnFail = true) {
+                if(session_status() !== PHP_SESSION_ACTIVE){
+                        session_start();
+                }
+
+                if(!(isset($_SESSION['login']) && $_SESSION['login'] == true && isset($_SESSION['uId']))){
+                        if($redirectOnFail){
+                                redirect('../index.php');
+                        }
+                        return false;
+                }
+
+                global $con;
+
+                $res = select("SELECT id, is_host, host_status, name FROM `user_cred` WHERE `id`=?", [$_SESSION['uId']], 'i');
+
+                if(mysqli_num_rows($res) == 0){
+                        if($redirectOnFail){
+                                redirect('../index.php');
+                        }
+                        return false;
+                }
+
+                $row = mysqli_fetch_assoc($res);
+                $_SESSION['is_host'] = (int)$row['is_host'];
+                $_SESSION['host_status'] = $row['host_status'];
+
+                if((int)$row['is_host'] !== 1){
+                        if($redirectOnFail){
+                                redirect('../profile.php');
+                        }
+                        return false;
+                }
+
+                return $row;
+        }
 
 	function redirect($url) {
 		echo "<script>window.location.href='$url'</script>";
@@ -129,5 +168,47 @@
         return 'upd_failed';
       }
     }
+  }
+
+  function ensureHostSchema()
+  {
+    global $con;
+
+    static $ensured = false;
+    if($ensured){
+      return;
+    }
+
+    $applications_table = "CREATE TABLE IF NOT EXISTS `host_applications` (
+      `id` INT AUTO_INCREMENT PRIMARY KEY,
+      `user_id` INT NOT NULL,
+      `property_name` VARCHAR(255) NOT NULL,
+      `area` VARCHAR(255) DEFAULT NULL,
+      `price` INT DEFAULT 0,
+      `quantity` INT DEFAULT 1,
+      `adult` INT DEFAULT 1,
+      `children` INT DEFAULT 0,
+      `description` TEXT,
+      `features` TEXT,
+      `facilities` TEXT,
+      `status` ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+      `room_id` INT DEFAULT NULL,
+      `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX (`user_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+
+    mysqli_query($con, $applications_table);
+
+    $check_host_id = mysqli_query($con, "SHOW COLUMNS FROM `rooms` LIKE 'host_id'");
+    if(mysqli_num_rows($check_host_id) == 0){
+      mysqli_query($con, "ALTER TABLE `rooms` ADD `host_id` INT NULL AFTER `id`");
+    }
+
+    $check_approval = mysqli_query($con, "SHOW COLUMNS FROM `rooms` LIKE 'approval_status'");
+    if(mysqli_num_rows($check_approval) == 0){
+      mysqli_query($con, "ALTER TABLE `rooms` ADD `approval_status` ENUM('pending','approved','rejected') NOT NULL DEFAULT 'approved' AFTER `status`");
+    }
+
+    $ensured = true;
   }
 ?>

@@ -42,10 +42,10 @@ if (isset($_GET['fetch_rooms'])) {
   // 🔹 Truy vấn danh sách phòng
   if ($area != '') {
     // Có lọc theo khu vực
-    $room_res = select("SELECT * FROM `rooms` WHERE `status`=? AND `removed`=? AND `area`=?", [1, 0, $area], 'iis');
+    $room_res = select("SELECT * FROM `rooms` WHERE `status`=? AND `removed`=? AND `approval_status`=? AND `area`=?", [1, 0, 'approved', $area], 'iiss');
   } else {
     // Không lọc khu vực
-    $room_res = select("SELECT * FROM `rooms` WHERE `status`=? AND `removed`=?", [1, 0], 'ii');
+    $room_res = select("SELECT * FROM `rooms` WHERE `status`=? AND `removed`=? AND `approval_status`=?", [1, 0, 'approved'], 'iis');
   }
 
   while ($room_data = mysqli_fetch_assoc($room_res)) {

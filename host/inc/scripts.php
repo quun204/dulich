@@ -1,7 +1,10 @@
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+
 <script>
-  function alert(type, msg, position = 'body') {
-    let bs_class = (type === 'success') ? 'alert-success' : 'alert-danger';
+  function alert(type,msg,position='body')
+  {
+    let bs_class = (type == 'success') ? 'alert-success' : 'alert-danger';
     let element = document.createElement('div');
     element.innerHTML = `
       <div class="alert ${bs_class} alert-dismissible fade show" role="alert">
@@ -10,31 +13,34 @@
       </div>
     `;
 
-    if (position === 'body') {
+    if(position=='body'){
       document.body.append(element);
       element.classList.add('custom-alert');
-    } else {
+    }
+    else{
       document.getElementById(position).appendChild(element);
     }
-
-    setTimeout(() => {
-      if (element && element.parentElement) {
-        element.remove();
-      }
-    }, 2000);
+    setTimeout(remAlert, 2000);
   }
 
-  function setActive() {
-    let navbar = document.getElementById('dashboard-menu');
-    if (!navbar) return;
-    let a_tags = navbar.getElementsByTagName('a');
+  function remAlert(){
+    const alerts = document.getElementsByClassName('alert');
+    if(alerts.length){
+      alerts[0].remove();
+    }
+  }
 
-    for (let i = 0; i < a_tags.length; i++) {
-      let file = a_tags[i].href.split('/').pop();
-      let file_name = file.split('.')[0];
-
-      if (document.location.href.indexOf(file_name) >= 0) {
-        a_tags[i].classList.add('active');
+  function setActive(){
+    const navbar = document.getElementById('dashboard-menu');
+    if(!navbar){
+      return;
+    }
+    const links = navbar.getElementsByTagName('a');
+    for(let i=0; i<links.length; i++){
+      const file = links[i].href.split('/').pop();
+      const fileName = file.split('.')[0];
+      if(document.location.href.indexOf(fileName) >= 0){
+        links[i].classList.add('active');
       }
     }
   }
