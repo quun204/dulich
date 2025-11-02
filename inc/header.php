@@ -60,6 +60,7 @@
                   <li><a class="dropdown-item" href="profile.php">Hồ sơ cá nhân</a></li>
                   <li><a class="dropdown-item" href="bookings.php">Lịch sử đặt phòng</a></li>
                   <li><a class="dropdown-item" href="logout.php">Đăng xuất</a></li>
+                  $host_menu
                 </ul>
               </div>
             data;
