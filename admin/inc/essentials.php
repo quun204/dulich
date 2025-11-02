@@ -17,13 +17,18 @@
   define('ROOMS_FOLDER','rooms/');
   define('USERS_FOLDER','users/');
 
-	function adminLogin() {
-		session_start();
-		if(!(isset($_SESSION['adminLogin']) && $_SESSION['adminLogin'] == true)){
-			echo"<script>window.location.href='index.php'</script>";
-			exit;
-		}
-	}
+        function adminLogin($allowHost = false) {
+                session_start();
+                $isAdmin = isset($_SESSION['adminLogin']) && $_SESSION['adminLogin'] === true;
+                $isHost = isset($_SESSION['hostLogin']) && $_SESSION['hostLogin'] === true;
+
+                if($isAdmin || ($allowHost && $isHost)){
+                        return;
+                }
+
+                echo"<script>window.location.href='index.php'</script>";
+                exit;
+        }
 
 	function redirect($url) {
 		echo "<script>window.location.href='$url'</script>";

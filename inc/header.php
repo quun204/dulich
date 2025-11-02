@@ -29,6 +29,21 @@
           if(isset($_SESSION['login']) && $_SESSION['login']==true)
           {
             $path = USERS_IMG_PATH;
+            $hostStatus = $_SESSION['hostStatus'] ?? null;
+            $isHost = !empty($_SESSION['isHost']);
+
+            if($isHost){
+              $hostMenuItems = '<li><a class="dropdown-item" href="admin/dashboard.php" target="_blank">Trang Host</a></li>';
+            } else {
+              if($hostStatus === 'pending'){
+                $hostMenuItems = '<li><span class="dropdown-item text-muted">Yêu cầu Host đang chờ duyệt</span></li>';
+              } else {
+                $hostMenuItems = '<li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#hostRequestModal">Yêu cầu trở thành Host</button></li>';
+                if($hostStatus === 'rejected'){
+                  $hostMenuItems .= '<li><span class="dropdown-item small text-danger">Yêu cầu trước đã bị từ chối. Vui lòng gửi lại.</span></li>';
+                }
+              }
+            }
             echo<<<data
               <div class="btn-group">
                 <button type="button" class="btn btn-outline-dark shadow-none dropdown-toggle" data-bs-toggle="dropdown" data-bs-display="static" aria-expanded="false">
@@ -38,6 +53,7 @@
                 <ul class="dropdown-menu dropdown-menu-lg-end">
                   <li><a class="dropdown-item" href="profile.php">Hồ sơ cá nhân</a></li>
                   <li><a class="dropdown-item" href="bookings.php">Lịch sử đặt phòng</a></li>
+                  $hostMenuItems
                   <li><a class="dropdown-item" href="logout.php">Đăng xuất</a></li>
                 </ul>
               </div>
@@ -187,27 +203,142 @@
         </div>
     </div>
 </div>
-<script>
-function becomeHost() {
-    if (confirm("Bạn có chắc chắn muốn gửi yêu cầu trở thành Host không?")) {
-        let xhr = new XMLHttpRequest();
-        xhr.open("POST", "ajax/become_host.php", true);
-        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+<?php
+  $featureOptions = selectAll('features');
+  $facilityOptions = selectAll('facilities');
+?>
 
-        xhr.onload = function() {
-            if (this.responseText == 'not_logged_in') {
-                alert("Bạn cần đăng nhập trước!");
-            } else if (this.responseText == 'already_requested') {
-                alert("Bạn đã gửi yêu cầu rồi!");
-            } else if (this.responseText == 'request_sent') {
-                alert("Yêu cầu đã được gửi. Vui lòng chờ admin duyệt!");
+<div class="modal fade" id="hostRequestModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+    aria-labelledby="hostRequestLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="host-request-form" autocomplete="off">
+                <div class="modal-header">
+                    <h5 class="modal-title d-flex align-items-center" id="hostRequestLabel">
+                        <i class="bi bi-house-add fs-3 me-2"></i> Yêu cầu trở thành Host
+                    </h5>
+                    <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Tên chỗ ở</label>
+                            <input type="text" name="property_name" class="form-control shadow-none" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Khu vực</label>
+                            <input type="text" name="area" class="form-control shadow-none" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Giá mỗi đêm</label>
+                            <input type="number" name="price" min="1" class="form-control shadow-none" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Số lượng phòng</label>
+                            <input type="number" name="quantity" min="1" class="form-control shadow-none" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Người lớn tối đa</label>
+                            <input type="number" name="adult" min="1" class="form-control shadow-none" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Trẻ em tối đa</label>
+                            <input type="number" name="children" min="0" class="form-control shadow-none" required>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label fw-bold">Mô tả chi tiết</label>
+                            <textarea name="description" rows="3" class="form-control shadow-none" required></textarea>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label fw-bold">Không gian</label>
+                            <div class="row">
+                                <?php if($featureOptions){ while($feature = mysqli_fetch_assoc($featureOptions)){ ?>
+                                    <div class="col-md-4 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="features[]" value="<?php echo $feature['id']; ?>"
+                                                id="feature_<?php echo $feature['id']; ?>">
+                                            <label class="form-check-label" for="feature_<?php echo $feature['id']; ?>"><?php echo $feature['name']; ?></label>
+                                        </div>
+                                    </div>
+                                <?php }} ?>
+                            </div>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label fw-bold">Tiện nghi</label>
+                            <div class="row">
+                                <?php if($facilityOptions){ while($facility = mysqli_fetch_assoc($facilityOptions)){ ?>
+                                    <div class="col-md-4 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="facilities[]" value="<?php echo $facility['id']; ?>"
+                                                id="facility_<?php echo $facility['id']; ?>">
+                                            <label class="form-check-label" for="facility_<?php echo $facility['id']; ?>"><?php echo $facility['name']; ?></label>
+                                        </div>
+                                    </div>
+                                <?php }} ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn text-secondary shadow-none" data-bs-dismiss="modal">Huỷ</button>
+                    <button type="submit" class="btn btn-dark shadow-none">Gửi yêu cầu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const hostRequestForm = document.getElementById('host-request-form');
+if (hostRequestForm) {
+    hostRequestForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const formData = new FormData(hostRequestForm);
+        const selectedFeatures = [];
+        const selectedFacilities = [];
+
+        hostRequestForm.querySelectorAll('input[name="features[]"]:checked').forEach((input) => {
+            selectedFeatures.push(input.value);
+        });
+
+        hostRequestForm.querySelectorAll('input[name="facilities[]"]:checked').forEach((input) => {
+            selectedFacilities.push(input.value);
+        });
+
+        formData.append('features', JSON.stringify(selectedFeatures));
+        formData.append('facilities', JSON.stringify(selectedFacilities));
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', 'ajax/become_host.php', true);
+
+        xhr.onload = function () {
+            const response = this.responseText.trim();
+            if (response === 'not_logged_in') {
+                alert('Bạn cần đăng nhập trước!');
+            } else if (response === 'already_requested') {
+                alert('Bạn đã gửi yêu cầu trước đó và đang được xử lý!');
+            } else if (response === 'already_host') {
+                alert('Tài khoản của bạn đã là Host!');
+            } else if (response === 'invalid_input') {
+                alert('Vui lòng kiểm tra lại thông tin và thử lại!');
+            } else if (response === 'request_sent') {
+                alert('Yêu cầu đã được gửi. Vui lòng chờ quản trị viên duyệt!');
+                hostRequestForm.reset();
+                const modalElement = document.getElementById('hostRequestModal');
+                if (modalElement) {
+                    const modal = bootstrap.Modal.getInstance(modalElement);
+                    if (modal) {
+                        modal.hide();
+                    }
+                }
                 location.reload();
             } else {
-                alert("Gửi yêu cầu thất bại!");
+                alert('Gửi yêu cầu thất bại! Vui lòng thử lại.');
             }
-        }
+        };
 
-        xhr.send();
-    }
+        xhr.send(formData);
+    });
 }
 </script>

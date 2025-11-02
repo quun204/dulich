@@ -61,6 +61,8 @@ if(isset($_POST['login'])) {
             $_SESSION['uId'] = $row['id'];
             $_SESSION['uName'] = $row['name'];
             $_SESSION['uPic'] = $row['profile'];
+            $_SESSION['isHost'] = (int)($row['is_host'] ?? 0);
+            $_SESSION['hostStatus'] = $row['host_status'] ?? null;
             echo 'login_success';
         } else {
             echo 'invalid_password';

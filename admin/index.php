@@ -3,7 +3,8 @@ require('inc/essentials.php');
 require('inc/db_config.php');
 
 session_start();
-if (isset($_SESSION['adminLogin']) && $_SESSION['adminLogin'] === true) {
+if ((isset($_SESSION['adminLogin']) && $_SESSION['adminLogin'] === true) ||
+    (isset($_SESSION['hostLogin']) && $_SESSION['hostLogin'] === true)) {
   redirect('dashboard.php');
 }
 ?>
@@ -36,7 +37,7 @@ if (isset($_SESSION['adminLogin']) && $_SESSION['adminLogin'] === true) {
             <div class="p-4">
                 <div class="mb-3">
                     <input name="admin_name" required type="text" class="form-control shadow-none text-center"
-                        placeholder="Tên quản trị viên">
+                        placeholder="Tên quản trị viên / Email Host">
                 </div>
                 <div class="mb-4">
                     <input name="admin_pass" required type="password" class="form-control shadow-none text-center"
@@ -64,6 +65,22 @@ if (isset($_SESSION['adminLogin']) && $_SESSION['adminLogin'] === true) {
       $_SESSION['adminId'] = $row['sr_no'];
       redirect('dashboard.php');
     } else {
+      $hostRes = select(
+        "SELECT * FROM `user_cred` WHERE (`email` = ? OR `phonenum` = ?) LIMIT 1",
+        [$frm_data['admin_name'], $frm_data['admin_name']],
+        'ss'
+      );
+
+      if ($hostRes && $hostRes->num_rows === 1) {
+        $hostRow = mysqli_fetch_assoc($hostRes);
+        if ($hostRow['password'] === $hashed_pass && (int)$hostRow['is_host'] === 1 && $hostRow['host_status'] === 'approved') {
+          $_SESSION['hostLogin'] = true;
+          $_SESSION['hostId'] = $hostRow['id'];
+          $_SESSION['hostName'] = $hostRow['name'];
+          redirect('dashboard.php');
+        }
+      }
+
       alert('error', 'Đăng nhập thất bại! Sai tên hoặc mật khẩu.');
     }
   }

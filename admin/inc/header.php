@@ -3,6 +3,7 @@
         <a href="logout.php" class="btn btn-light btn-sm">Đăng xuất</a>
 </div>
 
+<?php $isHostAccount = isset($_SESSION['hostLogin']) && $_SESSION['hostLogin'] === true; ?>
 <div class="col-lg-2 bg-dark border-top border-3 border-secondary" id="dashboard-menu">
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container-fluid flex-lg-column align-items-stretch">
@@ -38,6 +39,7 @@
                             </ul>
                         </div>
                     </li>
+                    <?php if(!$isHostAccount){ ?>
                     <li class="nav-item">
                         <a class="nav-link text-white" href="users.php">Người dùng</a>
                     </li>
@@ -59,6 +61,7 @@
                     <li class="nav-item">
                         <a class="nav-link text-white" href="settings.php">Cài đặt trang</a>
                     </li>
+                    <?php } ?>
                 </ul>
             </div>
         </div>
