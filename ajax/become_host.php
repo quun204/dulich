@@ -10,20 +10,32 @@ if(!isset($_SESSION['login']) || $_SESSION['login'] != true){
 
 $uId = $_SESSION['uId'];
 
-// Kiểm tra xem đã gửi yêu cầu chưa
-$check_q = mysqli_query($con, "SELECT host_status FROM user_cred WHERE id = '$uId'");
-$row = mysqli_fetch_assoc($check_q);
+$res = select("SELECT host_status, is_host FROM user_cred WHERE id = ? LIMIT 1", [$uId], 'i');
+if(!$res || mysqli_num_rows($res) === 0){
+  echo 'failed';
+  exit;
+}
 
-if($row['host_status'] != NULL){
+$row = mysqli_fetch_assoc($res);
+
+if((int)$row['is_host'] === 1){
+  echo 'already_host';
+  exit;
+}
+
+if($row['host_status'] === 'pending'){
   echo 'already_requested';
   exit;
 }
 
-// Cập nhật trạng thái yêu cầu
-$q = "UPDATE user_cred SET host_status = 'pending' WHERE id = ?";
-$values = [$uId];
-if(update($q, $values, 'i')){
-  echo 'request_sent';
+$status = 'pending';
+if($row['host_status'] === 'rejected'){
+  $status = 'pending';
+}
+
+if(update("UPDATE user_cred SET host_status = ? WHERE id = ?", [$status, $uId], 'si')){
+  $_SESSION['hostStatus'] = $status;
+  echo ($row['host_status'] === 'rejected') ? 'request_resent' : 'request_sent';
 } else {
   echo 'failed';
 }
